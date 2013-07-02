@@ -32,9 +32,18 @@ trait PlayKeys {
 
   val requireNativePath = SettingKey[Option[String]]("play-require-native-path")
 
-  val playOnStarted = SettingKey[Seq[(java.net.InetSocketAddress) => Unit]]("play-onStarted")
-
-  val playOnStopped = SettingKey[Seq[() => Unit]]("play-onStopped")
+  @deprecated("Use playAfterStarted instead.", "2.2")
+  val playOnStarted = SettingKey[Seq[(java.net.InetSocketAddress) => Unit]]("play-onStarted", "This is a sequence of functions that are executed when a play `run` is started.")
+  @deprecated("Use playAfterStopped instead.", "2.2")
+  val playOnStopped = SettingKey[Seq[() => Unit]]("play-onStopped", "This is a sequence of functions that are started when a play `run` is stopped.")
+  
+  // Play run listeners
+  val playBeforeStarted = SettingKey[Seq[Task[Unit]]]("playBeforeStarted", "This is a sequence of tasks that are executed before a play `run` is started.")
+  val playAfterStarted  = SettingKey[Seq[java.net.InetSocketAddress => Task[Unit]]]("playAfterStarted", "This is a sequence of tasks that are executed after a play `run` is started (not guaranteed to run).")
+  val playBeforeStopped = SettingKey[Seq[Task[Unit]]]("playBeforeStopped", "This is a sequence of tasks that are executed when a play `run` is about to be stopped (not guaranteed to run).")
+  val playAfterStopped  = SettingKey[Seq[Task[Unit]]]("playAfterStopped", "This is a sequence of tasks that are executed after a play `run` completes (not guaranteed to run).")
+  
+  
 
   val distDirectory = SettingKey[File]("play-dist")
 

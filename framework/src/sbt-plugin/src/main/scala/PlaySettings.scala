@@ -154,6 +154,25 @@ trait PlaySettings {
     playOnStarted := Nil,
 
     playOnStopped := Nil,
+    
+    playBeforeStarted := Nil,
+    
+    playAfterStarted <<= playOnStarted apply { onStartedList =>
+      type TaskHandler = java.net.InetSocketAddress => Task[Unit]
+      for {
+        handler <- onStartedList
+      } yield new TaskHandler {
+        def apply(addr: java.net.InetSocketAddress): Task[Unit] = sbt.task(handler(addr))
+      }
+    },
+    
+    playBeforeStopped := Nil,
+    
+    playAfterStopped <<= playOnStopped apply { onStoppedList =>
+      for {
+        handler <- onStoppedList
+      } yield sbt.task(handler())
+    },
 
     // Assets
 

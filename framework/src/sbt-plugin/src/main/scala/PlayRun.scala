@@ -7,6 +7,12 @@ import play.console.Colors
 import annotation.tailrec
 import scala.collection.JavaConverters._
 
+object PlayRun {
+  object Keys {
+    
+  }
+}
+
 /**
  * Provides mechanisms for running a Play application in SBT
  */
@@ -139,6 +145,13 @@ trait PlayRun extends PlayInternalKeys {
 
         lazy val reloader = newReloader(state, playReload, applicationLoader)
 
+
+        // Notify "before start" hooks
+        for(task <- extracted.get(playBeforeStarted)) {
+          // TODO - Figure this out...
+          sbt.GlobalPlugin.evaluate(state, extracted.structure, task, Nil)
+        }
+        // Now start
         val mainClass = applicationLoader.loadClass("play.core.server.NettyServer")
         val server = if (httpPort.isDefined) {
           val mainDev = mainClass.getMethod("mainDevHttpMode", classOf[play.core.SBTLink], classOf[Int])
@@ -149,8 +162,13 @@ trait PlayRun extends PlayInternalKeys {
 
         }
 
-        // Notify hooks
-        extracted.get(playOnStarted).foreach(_(server.mainAddress))
+        // Notify "after start" hooks
+        for(l <- extracted.get(playAfterStarted)) {
+          val task = l(server.mainAddress)
+          // TODO - Figure this out...
+          sbt.GlobalPlugin.evaluate(state, extracted.structure, task, Nil)
+        }
+        //extracted.get(playOnStarted).foreach(_(server.mainAddress))
 
         println()
         println(Colors.green("(Server started, use Ctrl+D to stop and go back to the console...)"))
@@ -204,11 +222,13 @@ trait PlayRun extends PlayInternalKeys {
         // If we have both Watched.Configuration and Watched.ContinuousState
         // attributes and if Watched.ContinuousState.count is 1 then we assume
         // we're in ~ run mode
-        val maybeContinuous = state.get(Watched.Configuration).map { w =>
-          state.get(Watched.ContinuousState).map { ws =>
-            (ws.count == 1, w, ws)
-          }.getOrElse((false, None, None))
-        }.getOrElse((false, None, None))
+        val maybeContinuous = {
+          val tildeRunMode = for {
+            w <- state.get(Watched.Configuration)
+            ws <- state.get(Watched.ContinuousState)
+          } yield (ws.count == 1, w, ws)
+          tildeRunMode getOrElse (false, None, None)
+        }
 
         val newState = maybeContinuous match {
           case (true, w: sbt.Watched, ws) => {
@@ -227,11 +247,22 @@ trait PlayRun extends PlayInternalKeys {
           }
         }
 
+        // Notify "before stop" hooks
+        for(task <- extracted.get(playBeforeStopped)) {
+          // TODO - Figure this out...
+          sbt.GlobalPlugin.evaluate(state, extracted.structure, task, Nil)
+        }
+
+        
         server.stop()
         reloader.clean()
 
-        // Notify hooks
-        extracted.get(playOnStopped).foreach(_())
+        // Notify "after stop" hooks
+        for(task <- extracted.get(playAfterStopped)) {
+          // TODO - Figure this out...
+          sbt.GlobalPlugin.evaluate(state, extracted.structure, task, Nil)
+        }
+
 
         newState
       }
